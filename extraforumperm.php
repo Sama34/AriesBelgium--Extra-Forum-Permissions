@@ -45,10 +45,10 @@ function extraforumperm_info()
 	return array(
 		"name"			=> $lang->extraforumperm,
 		"description"	=> "{$donate_button}{$lang->extraforumperm_description}",
-		"website"		=> "",
+		"website"		=> "http://mods.mybb.com/view/extra-forum-permissions",
 		"author"		=> "Aries-Belgium",
 		"authorsite"	=> "mailto:aries.belgium@gmail.com",
-		"version"		=> "1.1",
+		"version"		=> "1.2",
 		"guid" 			=> "aa4ae3a915facf10a67a029af9ea154a",
 		"compatibility" => "16*"
 	);
@@ -151,7 +151,7 @@ function extraforumperm_permissions()
  *
  * Add the extra permissions to the custom permissions form
  */
-function extraforumperm_custom_permissions($groups)
+function extraforumperm_custom_permissions(&$groups)
 {
 	global $lang;
 	
@@ -164,7 +164,7 @@ function extraforumperm_custom_permissions($groups)
 	}
 }
 
-function extraforumperm_usergroup_permissions_tab($tabs)
+function extraforumperm_usergroup_permissions_tab(&$tabs)
 {
 	global $lang;
 	
@@ -582,20 +582,21 @@ function extraforumperm_save_modoptions()
 	$modlogdata['tid'] = $thread['tid'];
 	
 	$forumpermissions = forum_permissions($thread['fid']);
-	
+
+	$update = array();
 	if($forumpermissions['cancloseownthreads'] && $mybb->user['uid'] == $thread['uid'])
 	{
 		// Close the thread.
 		if($modoptions['closethread'] == 1 && $thread['closed'] != 1)
 		{
-			$newclosed = "closed=1";
+			$update['closed'] = 1;
 			log_moderator_action($modlogdata, $lang->thread_closed);
 		}
 
 		// Open the thread.
 		if($modoptions['closethread'] != 1 && $thread['closed'] == 1)
 		{
-			$newclosed = "closed=0";
+			$update['closed'] = 0;
 			log_moderator_action($modlogdata, $lang->thread_opened);
 		}
 	}
@@ -605,30 +606,22 @@ function extraforumperm_save_modoptions()
 		// Stick the thread.
 		if($modoptions['stickthread'] == 1 && $thread['sticky'] != 1)
 		{
-			$newstick = "sticky='1'";
+			$update['sticky'] = 1;
 			log_moderator_action($modlogdata, $lang->thread_stuck);
 		}
 
 		// Unstick the thread.
 		if($modoptions['stickthread'] != 1 && $thread['sticky'])
 		{
-			$newstick = "sticky='0'";					
+			$update['sticky'] = 0;					
 			log_moderator_action($modlogdata, $lang->thread_unstuck);
 		}
 	}
 
 	// Execute moderation options.
-	if($newstick && $newclosed)
+	if($update)
 	{
-		$sep = ",";
-	}
-	if($newstick || $newclosed)
-	{
-		$db->write_query("
-			UPDATE ".TABLE_PREFIX."threads
-			SET {$newclosed}{$sep}{$newstick}
-			WHERE tid='{$thread['tid']}'
-		");
+		$db->update_query('threads', $update, 'tid=\''.(int)$thread['tid'].'\'');
 	}
 }
 
@@ -637,7 +630,7 @@ function extraforumperm_save_modoptions()
  *
  * When there are links in the new post, throw an error
  */
-function extraforumperm_validatepost($datahandler)
+function extraforumperm_validatepost(&$datahandler)
 {
 	global $lang;
 	
