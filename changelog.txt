@@ -1,0 +1,11 @@
+1.0
+===
+ - Initial release
+ 
+1.1
+===
+ - Added "Can post links?" permission
+ - Added "Can post images?" permission
+ - Added "Can post videos?" permission
+ - Check if a field already exists when installing
+ - Added a default value per field to not break the default MyBB functionality

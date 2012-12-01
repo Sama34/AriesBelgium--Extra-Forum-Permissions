@@ -1,0 +1,19 @@
+INSTALL
+=======
+1) Copy both the extraforumperm-folder and the extraforumperm.php file into /path/to/mybb/inc/plugins/
+2) Install & Activatethe plugin in AdminCP
+
+UPGRADE
+======
+1) Deactivate the plugin
+2) Copy both the extraforumperm-folder and the extraforumperm.php file into /path/to/mybb/inc/plugins/
+3) Install & Activate the plugin again in AdminCP (this will NOT overwrite your current permissions)
+
+CONFIGURATION
+=============
+You can set the global permissions per usergroup in AdminCP > User & Groups > Groups. Now click the group you wish to edit
+and head over to the "Extra" tab. Check or uncheck to respectively enable or disable a permission.
+You can also overwrite these global permissions on a per forum basis. Go to AdminCP > Forums & Posts > Forums. Click the forum
+for which you wish to overwrite the permissions and go to the "Permissions" tab. Click the "Set/Edit Custom Permissions"-link
+for the usergroup that needs the custom permission for that particalur forum and enter the "Extra" tab when the popup pops up.
+Check or uncheck to respectively enable or disable a permission for that usergroup in that forum (and child forums) only
