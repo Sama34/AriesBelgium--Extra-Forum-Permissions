@@ -36,8 +36,7 @@ $plugins->add_hook('datahandler_post_validate_post', 'extraforumperm_validatepos
 function extraforumperm_info()
 {
 	global $lang;
-	
-	extraforumperm__lang_load();
+	$lang->load('extraforumperm');
 	
 	$donate_button = 
 '<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RQNL345SN45DS" style="float:right;margin-top:-8px;padding:4px;" target="_blank"><img src="https://www.paypalobjects.com/WEBSCR-640-20110306-1/en_US/i/btn/btn_donate_SM.gif" /></a>';
@@ -49,8 +48,7 @@ function extraforumperm_info()
 		"author"		=> "Aries-Belgium",
 		"authorsite"	=> "mailto:aries.belgium@gmail.com",
 		"version"		=> "1.2",
-		"guid" 			=> "aa4ae3a915facf10a67a029af9ea154a",
-		"compatibility" => "16*"
+		"compatibility" => "18*"
 	);
 }
 
@@ -154,8 +152,7 @@ function extraforumperm_permissions()
 function extraforumperm_custom_permissions(&$groups)
 {
 	global $lang;
-	
-	extraforumperm__lang_load();
+	$lang->load('extraforumperm');
 	
 	$permissions = extraforumperm_permissions();
 	foreach($permissions as $permission => $default)
@@ -167,8 +164,7 @@ function extraforumperm_custom_permissions(&$groups)
 function extraforumperm_usergroup_permissions_tab(&$tabs)
 {
 	global $lang;
-	
-	extraforumperm__lang_load();
+	$lang->load('extraforumperm');
 	
 	$tabs['extra'] = $lang->group_extra;
 }
@@ -181,8 +177,7 @@ function extraforumperm_usergroup_permissions_tab(&$tabs)
 function extraforumperm_usergroup_permissions()
 {
 	global $mybb, $lang, $form;
-	
-	extraforumperm__lang_load();
+	$lang->load('extraforumperm');
 	
 	$permissions = extraforumperm_permissions();
 
@@ -226,7 +221,7 @@ function extraforumperm_canrateownthreads()
 	
 	if($forumpermissions['canrateownthreads'] != 1 && $thread['uid'] == $mybb->user['uid'])
 	{
-		extraforumperm__lang_load();
+		$lang->load('extraforumperm');
 		error($lang->error_canrateownthread);
 	}
 }
@@ -633,6 +628,7 @@ function extraforumperm_save_modoptions()
 function extraforumperm_validatepost(&$datahandler)
 {
 	global $lang;
+	$lang->load('extraforumperm');
 	
 	$forumpermissions = forum_permissions($datahandler->data['fid']);
 	
@@ -660,7 +656,6 @@ function extraforumperm_validatepost(&$datahandler)
 			preg_match($url_tags_complex2, $message)
 		)
 		{
-			extraforumperm__lang_load();
 			$datahandler->is_validated = false;
 			$datahandler->set_error($lang->error_canpostlinks);
 		}
@@ -680,7 +675,6 @@ function extraforumperm_validatepost(&$datahandler)
 			preg_match($img_tags_4, $message)
 		)
 		{
-			extraforumperm__lang_load();
 			$datahandler->is_validated = false;
 			$datahandler->set_error($lang->error_canpostimages);
 		}
@@ -692,59 +686,8 @@ function extraforumperm_validatepost(&$datahandler)
 		
 		if(preg_match($video_tag, $message))
 		{
-			extraforumperm__lang_load();
 			$datahandler->is_validated = false;
 			$datahandler->set_error($lang->error_canpostvideos);
-		}
-	}
-}
-
-/**
- * Helper function to load language files for the plugin
- */
-function extraforumperm__lang_load($file="", $supress_error=false)
-{
-	global $lang;
-	
-	$plugin_name = str_replace('__lang_load', '', __FUNCTION__);
-	$plugin_lang_dir = MYBB_ROOT."inc/plugins/{$plugin_name}/lang/";
-	if(empty($file)) $file = $plugin_name;
-	
-	$langparts = explode("/", $lang->language, 2);
-	$language = $langparts[0];
-	if(isset($langparts[1]))
-	{
-		$dir = "/".$langparts[1];
-	}
-	else
-	{
-		$dir = "";
-	}
-	
-	if(file_exists($plugin_lang_dir.$language.$dir."/{$file}.lang.php"))
-	{
-		require_once $plugin_lang_dir.$language.$dir."/{$file}.lang.php";
-	}
-	elseif(file_exists($plugin_lang_dir."english".$dir."/{$file}.lang.php"))
-	{
-		require_once $plugin_lang_dir."english".$dir."/{$file}.lang.php";
-	}
-	else
-	{
-		if($supress_error != true)
-		{
-			die($plugin_lang_dir."english".$dir."/{$file}.lang.php");
-		}
-	}
-	
-	if(is_array($l))
-	{
-		foreach($l as $key => $val)
-		{
-			if(empty($lang->$key) || $lang->$key != $val)
-			{
-				$lang->$key = $val;
-			}
 		}
 	}
 }
