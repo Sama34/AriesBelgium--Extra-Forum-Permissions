@@ -20,7 +20,7 @@ $plugins->add_hook('admin_user_groups_edit_commit', 'extraforumperm_usergroup_pe
 // canrateownthreads
 $plugins->add_hook('ratethread_start', 'extraforumperm_canrateownthreads');
 // canstickyownthreads, cancloseownthreads
-$plugins->add_hook('showthread_start', 'extraforumperm_showthreadmoderation');
+$plugins->add_hook('showthread_end', 'extraforumperm_showthreadmoderation');
 $plugins->add_hook('newreply_end', 'extraforumperm_newreplymoderation');
 $plugins->add_hook('newthread_end', 'extraforumperm_newthreadmoderation');
 $plugins->add_hook('moderation_start', 'extraforumperm_moderation');
@@ -130,6 +130,20 @@ function extraforumperm_activate()
 	// rebuild the cache
 	$cache->update_usergroups();
 	$cache->update_forumpermissions();
+
+	require_once MYBB_ROOT.'inc/adminfunctions_templates.php';
+
+	find_replace_templatesets('showthread_quickreply', '#'.preg_quote('{$closeoption}').'#i', '<!--EXTRAPERMISSIONS-->');
+}
+
+/**
+ * The deactivate function for the plugin system
+ */
+function extraforumperm_deactivate()
+{
+	require_once MYBB_ROOT.'inc/adminfunctions_templates.php';
+
+	find_replace_templatesets('showthread_quickreply', '#'.preg_quote('<!--EXTRAPERMISSIONS-->').'#i', '');
 }
 
 function extraforumperm_permissions()
@@ -218,11 +232,10 @@ function extraforumperm_usergroup_permissions_save()
 function extraforumperm_canrateownthreads()
 {
 	global $lang, $mybb, $thread, $forumpermissions;
-	
-	if($forumpermissions['canrateownthreads'] != 1 && $thread['uid'] == $mybb->user['uid'])
+
+	if(!$forumpermissions['canrateownthreads'] && $thread['uid'] == $mybb->user['uid'])
 	{
-		$lang->load('extraforumperm');
-		error($lang->error_canrateownthread);
+		error($lang->error_cannotrateownthread);
 	}
 }
 
@@ -233,7 +246,7 @@ function extraforumperm_canrateownthreads()
  */
 function extraforumperm_showthreadmoderation()
 {
-	global $mybb, $lang, $thread, $templates, $forumpermissions, $moderationoptions, $closeoption, $inlinecount, $inlinecookie;
+	global $mybb, $lang, $thread, $templates, $forumpermissions, $moderationoptions, $inlinecount, $inlinecookie, $gobutton, $tid, $quickreply;
 	
 	// if $moderationoptions is not empty the current user already has
 	// moderation rights to this thread
@@ -248,48 +261,56 @@ function extraforumperm_showthreadmoderation()
 	)
 		return;
 		
-	$options = array();
-	
+	$standardthreadtools = '';
+
+	$closeoption = '';
+
 	if($forumpermissions['cancloseownthreads'] == 1 && $thread['uid'] == $mybb->user['uid'])
 	{
-		if($thread['closed'] == 1)
+		if($quickreply)
 		{
-			$closelinkch = ' checked="checked"';
+			if($thread['closed'] == 1)
+			{
+				$closelinkch = ' checked="checked"';
+			}
+
+			$closeoption .= eval($templates->render('showthread_quickreply_options_close'));
 		}
-		$closeoption = "<br /><label><input type=\"checkbox\" class=\"checkbox\" name=\"modoptions[closethread]\" value=\"1\"{$closelinkch} />&nbsp;<strong>".$lang->close_thread."</strong></label>";
 		
-		$options[] = '<option value="openclosethread">'.$lang->open_close_thread.'</option>';
+		$standardthreadtools .= eval($templates->render('showthread_moderationoptions_openclose'));
 	}
 	
 	if($forumpermissions['canstickyownthreads'] == 1 && $thread['uid'] == $mybb->user['uid'])
 	{
-		if($thread['sticky'])
+		if($quickreply)
 		{
-			$stickch = ' checked="checked"';
+			if($thread['sticky'])
+			{
+				$stickch = ' checked="checked"';
+			}
+	
+			$closeoption .= eval($templates->render('showthread_quickreply_options_stick'));
 		}
 		
-		$closeoption .= "<br /><label><input type=\"checkbox\" class=\"checkbox\" name=\"modoptions[stickthread]\" value=\"1\"{$stickch} />&nbsp;<strong>".$lang->stick_thread."</strong></label>";
-		
-		$options[] = '<option value="stick">'.$lang->stick_unstick_thread.'</option>';
+		$standardthreadtools .= eval($templates->render('showthread_moderationoptions_stickunstick'));
 	}
-	
-	eval("\$gobutton = \"".$templates->get('gobutton')."\";");
-	
-	if(count($options) > 0)
+
+	if($closeoption)
 	{
-		$moderationoptions = 
-'<form action="moderation.php" method="post" style="margin-top: 0; margin-bottom: 0;" id="extraforumperms">
-	<input type="hidden" name="extraforumperm" value="1" />
-	<input type="hidden" name="modtype" value="thread" />
-	<input type="hidden" name="tid" value="'.$thread['tid'].'" />
-	<input type="hidden" name="my_post_key" value="'.$mybb->post_code.'" />
-	<span class="smalltext">
-	<strong>'.$lang->moderation_options.'</strong></span>
-	<select name="action" onchange="$(\'extraforumperms\').submit();">
-	'.implode("\n", $options).'
-	</select>
-	'.$gobutton.'
-</form><br/>';
+		$quickreply = str_replace('<!--EXTRAPERMISSIONS-->', $closeoption, $quickreply);
+	}
+
+	if($standardthreadtools)
+	{
+		$_i = $lang->delayed_moderation;
+
+		$inlinemod = $lang->delayed_moderation = '';
+
+		$customthreadtools = '<input type="hidden" name="extraforumperm" value="1" />';
+
+		$moderationoptions = eval($templates->render('showthread_moderationoptions'));
+
+		$lang->delayed_moderation = $_i;
 	}
 }
 
@@ -412,61 +433,62 @@ function extraforumperm_newthreadmoderation()
 function extraforumperm_moderation()
 {
 	global $mybb, $moderation, $plugins, $templates, $parser, $lang;
-	
-	if($mybb->input['extraforumperm'] == 1)
-	{
-		// @see moderation.php: 41 -> 98 ------------------------------------
-		$tid = intval($mybb->input['tid']);
-		$pid = intval($mybb->input['pid']);
-		$fid = intval($mybb->input['fid']);
 
+	if($mybb->get_input('extraforumperm', MyBB::INPUT_INT))
+	{
+		// @see moderation.php: 37 -> 73 ------------------------------------
+		$tid = $mybb->get_input('tid', MyBB::INPUT_INT);
+		$pid = $mybb->get_input('pid', MyBB::INPUT_INT);
+		$fid = $mybb->get_input('fid', MyBB::INPUT_INT);
+		
 		if($pid)
 		{
 			$post = get_post($pid);
-			$tid = $post['tid'];
-			if(!$post['pid'])
+			if(!$post)
 			{
-				error($lang->error_invalidpost);
+				error($lang->error_invalidpost, $lang->error);
 			}
+			$tid = $post['tid'];
 		}
 
 		if($tid)
 		{
 			$thread = get_thread($tid);
-			$fid = $thread['fid'];
-			if(!$thread['tid'])
+			if(!$thread)
 			{
-				error($lang->error_invalidthread);
+				error($lang->error_invalidthread, $lang->error);
 			}
+			$fid = $thread['fid'];
 		}
 
 		if($fid)
 		{
 			$modlogdata['fid'] = $fid;
 			$forum = get_forum($fid);
-
+		
 			// Make navigation
 			build_forum_breadcrumb($fid);
+		
+			// Get our permissions all nice and setup
+			$permissions = forum_permissions($fid);
 		}
 
-		$thread['subject'] = htmlspecialchars_uni($parser->parse_badwords($thread['subject'])); 
-
-		if($tid)
+		if(isset($thread))
 		{
+			$thread['subject'] = htmlspecialchars_uni($parser->parse_badwords($thread['subject']));
 			add_breadcrumb($thread['subject'], get_thread_link($thread['tid']));
-			$modlogdata['tid'] = $tid;
+			$modlogdata['tid'] = $thread['tid'];
 		}
 
-		// Get our permissions all nice and setup
-		$permissions = forum_permissions($fid);
-
-		if($fid)
+		if(isset($forum))
 		{
 			// Check if this forum is password protected and we have a valid password
 			check_forum_password($forum['fid']);
 		}
 
-		if($mybb->user['uid'] != 0)
+		$mybb->user['username'] = htmlspecialchars_uni($mybb->user['username']);
+
+		if($mybb->user['uid'])
 		{
 			eval("\$loginbox = \"".$templates->get("changeuserbox")."\";");
 		}
@@ -476,23 +498,29 @@ function extraforumperm_moderation()
 		}
 		// ------------------------------------------------------------------
 		
-		switch($mybb->input['action'])
+		switch($mybb->get_input('action'))
 		{
 			// canstickyownthread
-			case 'stick':
-				verify_post_check($mybb->input['my_post_key']);
-				
+			// Stick or unstick that post to the top bab!
+			case "stick":
+				// Verify incoming POST request
+				verify_post_check($mybb->get_input('my_post_key'));
+
 				if(
-					!is_moderator($fid, "canmanagethreads") && 
-					($permissions['canstickyownthreads'] == 0) &&
-					($mybb->user['uid'] != $thread['uid'])
+					!is_moderator($fid, "canstickunstickthreads") &&
+					!($permissions['canstickyownthreads'] && $mybb->user['uid'] == $thread['uid'])
 				)
 				{
 					error_no_permission();
 				}
+		
+				if($thread['visible'] == -1)
+				{
+					error($lang->error_thread_deleted, $lang->error);
+				}
 
 				$plugins->run_hooks("moderation_stick");
-
+		
 				if($thread['sticky'] == 1)
 				{
 					$stuckunstuck = $lang->unstuck;
@@ -505,25 +533,32 @@ function extraforumperm_moderation()
 					$redirect = $lang->redirect_stickthread;
 					$moderation->stick_threads($tid);
 				}
-
+		
 				$lang->mod_process = $lang->sprintf($lang->mod_process, $stuckunstuck);
-
+		
 				log_moderator_action($modlogdata, $lang->mod_process);
-
+		
 				moderation_redirect(get_thread_link($thread['tid']), $redirect);
 				break;
 			// cancloseownthread
-			case 'openclosethread':
-				verify_post_check($mybb->input['my_post_key']);
-				
-				if(!is_moderator($fid, "canopenclosethreads") && 
-					($permissions['cancloseownthreads'] == 0) &&
-					($mybb->user['uid'] != $thread['uid'])
+			// Open or close a thread
+			case "openclosethread":
+				// Verify incoming POST request
+				verify_post_check($mybb->get_input('my_post_key'));
+		
+				if(
+					!is_moderator($fid, "canopenclosethreads") &&
+					!($permissions['cancloseownthreads'] && $mybb->user['uid'] == $thread['uid'])
 				)
 				{
 					error_no_permission();
 				}
-
+		
+				if($thread['visible'] == -1)
+				{
+					error($lang->error_thread_deleted, $lang->error);
+				}
+		
 				if($thread['closed'] == 1)
 				{
 					$openclose = $lang->opened;
@@ -536,11 +571,11 @@ function extraforumperm_moderation()
 					$redirect = $lang->redirect_closethread;
 					$moderation->close_threads($tid);
 				}
-
+		
 				$lang->mod_process = $lang->sprintf($lang->mod_process, $openclose);
-
+		
 				log_moderator_action($modlogdata, $lang->mod_process);
-
+		
 				moderation_redirect(get_thread_link($thread['tid']), $redirect);
 				break;
 		}
