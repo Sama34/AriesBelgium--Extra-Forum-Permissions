@@ -11,6 +11,8 @@ if (!defined('IN_MYBB')) {
     die('Direct initialization of this file is not allowed.<br /><br />Please make sure IN_MYBB is defined.');
 }
 
+global $plugins;
+
 $plugins->add_hook('admin_forum_management_permission_groups', 'extraforumperm_custom_permissions');
 $plugins->add_hook('admin_user_groups_edit_graph_tabs', 'extraforumperm_usergroup_permissions_tab');
 $plugins->add_hook('admin_user_groups_edit_graph', 'extraforumperm_usergroup_permissions');
@@ -86,16 +88,19 @@ function extraforumperm_is_installed()
     global $db;
 
     // check if the extra fields exist
-    $fields_exist = true;
+    $all_fields_exist = true;
     $permissions = extraforumperm_permissions();
     foreach ($permissions as $permission => $default) {
-        if (!$db->field_exists($permission, 'forumpermissions') || !$db->field_exists($permiission, 'usergroups')) {
-            $fields_exist = false;
+        $all_fields_exist = $db->field_exists($permission, 'forumpermissions') &&
+            $db->field_exists($permission, 'usergroups') &&
+            $all_fields_exist;
+
+        if (!$all_fields_exist) {
             break;
         }
     }
 
-    return $fields_exist;
+    return $all_fields_exist;
 }
 
 /**
@@ -108,8 +113,8 @@ function extraforumperm_uninstall()
     // delete the extra fields
     $permissions = extraforumperm_permissions();
     foreach ($permissions as $permission => $default) {
-        $db->query('ALTER TABLE ' . TABLE_PREFIX . 'forumpermissions DROP ' . $permission);
-        $db->query('ALTER TABLE ' . TABLE_PREFIX . 'usergroups DROP ' . $permission);
+        $db->drop_column('forumpermissions', $permission);
+        $db->drop_column('usergroups', $permission);
     }
 
     // rebuild the cache
@@ -205,7 +210,7 @@ function extraforumperm_usergroup_permissions()
             $permission,
             1,
             $lang->$l,
-            ['checked' => $mybb->input[$permission]]
+            ['checked' => $mybb->get_input($permission, MyBB::INPUT_INT)]
         );
     }
 
@@ -230,7 +235,7 @@ function extraforumperm_usergroup_permissions_save()
     $permissions = extraforumperm_permissions();
 
     foreach ($permissions as $permission => $default) {
-        $updated_group[$permission] = intval($mybb->input[$permission]);
+        $updated_group[$permission] = $mybb->get_input($permission, MyBB::INPUT_INT);
     }
 }
 
@@ -327,9 +332,11 @@ function extraforumperm_newreplymoderation()
 {
     global $mybb, $templates, $lang, $forumpermissions, $thread, $modoptions, $bgcolor;
 
-    if ($mybb->input['processed']) {
-        $closed = intval($mybb->input['modoptions']['closethread']);
-        $stuck = intval($mybb->input['modoptions']['stickthread']);
+    if (isset($mybb->input['processed'])) {
+        $moderation_options = $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
+
+        $closed = isset($moderation_options['closethread']) ? 1 : 0;
+        $stuck = isset($moderation_options['stickthread']) ? 1 : 0;
     } else {
         $closed = $thread['closed'];
         $stuck = $thread['sticky'];
@@ -370,12 +377,14 @@ function extraforumperm_newthreadmoderation()
 {
     global $mybb, $templates, $lang, $forumpermissions, $modoptions, $bgcolor;
 
-    if ($mybb->input['processed']) {
-        $closed = intval($mybb->input['modoptions']['closethread']);
-        $stuck = intval($mybb->input['modoptions']['stickthread']);
+    if (isset($mybb->input['processed'])) {
+        $moderation_options = $mybb->get_input('modoptions', MyBB::INPUT_ARRAY);
+
+        $closed = isset($moderation_options['closethread']) ? 1 : 0;
+        $stuck = isset($moderation_options['stickthread']) ? 1 : 0;
     } else {
-        $closed = $thread['closed'];
-        $stuck = $thread['sticky'];
+        $closed = 0;
+        $stuck = 0;
     }
 
     if ($closed) {
