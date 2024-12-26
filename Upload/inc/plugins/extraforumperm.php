@@ -27,7 +27,7 @@ $plugins->add_hook('newthread_end', 'extraforumperm_newthreadmoderation');
 $plugins->add_hook('moderation_start', 'extraforumperm_moderation');
 $plugins->add_hook('newreply_do_newreply_end', 'extraforumperm_save_modoptions');
 $plugins->add_hook('newthread_do_newthread_end', 'extraforumperm_save_modoptions');
-// canpostlinks, canpostimages, canpostvideos
+// can_post_links_in_threads, canpostlinks, canpostimages, canpostvideos
 $plugins->add_hook('datahandler_post_validate_thread', 'extraforumperm_validatepost');
 $plugins->add_hook('datahandler_post_validate_post', 'extraforumperm_validatepost');
 
@@ -158,6 +158,7 @@ function extraforumperm_permissions()
         'canrateownthreads' => 1,
         'canstickyownthreads' => 0,
         'cancloseownthreads' => 0,
+        'can_post_links_in_threads' => 1,
         'canpostlinks' => 1,
         'canpostimages' => 1,
         'canpostvideos' => 1
@@ -619,7 +620,7 @@ function extraforumperm_save_modoptions()
  */
 function extraforumperm_validatepost(&$datahandler)
 {
-    global $lang;
+    global $plugins, $lang;
     $lang->load('extraforumperm');
 
     $forumpermissions = forum_permissions($datahandler->data['fid']);
@@ -630,7 +631,11 @@ function extraforumperm_validatepost(&$datahandler)
     // the content of those tags
     $message = preg_replace("#\[(code|php)\](.*?)\[/\\1\](\r\n?|\n?)#si", '', $message);
 
-    if (!$forumpermissions['canpostlinks']) {
+    $is_thread = $plugins->current_hook == 'datahandler_post_validate_thread';
+
+    $is_post = !$is_thread;
+
+    if ($is_thread && !$forumpermissions['can_post_links_in_threads'] || $is_post && !$forumpermissions['canpostlinks']) {
         $http_links = "#([\>\s\(\)])(http|https|ftp|news){1}://([^\/\"\s\<\[\.]+\.([^\/\"\s\<\[\.]+\.)*[\w]+(:[0-9]+)?(/[^\"\s<\[]*)?)#i";
         $www_links = "#([\>\s\(\)])(www|ftp)\.(([^\/\"\s\<\[\.]+\.)*[\w]+(:[0-9]+)?(/[^\"\s<\[]*)?)#i";
         $url_tags_simple = "#\[url\]([a-z]+?://)([^\r\n\"<]+?)\[/url\]#si";
