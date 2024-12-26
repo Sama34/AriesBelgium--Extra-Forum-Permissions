@@ -40,7 +40,7 @@ function extraforumperm_info()
     $donate_button =
         '<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=RQNL345SN45DS" style="float:right;margin-top:-8px;padding:4px;" target="_blank"><img src="https://www.paypalobjects.com/WEBSCR-640-20110306-1/en_US/i/btn/btn_donate_SM.gif" /></a>';
 
-    return array(
+    return [
         'name' => $lang->extraforumperm,
         'description' => "{$donate_button}{$lang->extraforumperm_description}",
         'website' => 'http://mods.mybb.com/view/extra-forum-permissions',
@@ -48,7 +48,7 @@ function extraforumperm_info()
         'authorsite' => 'mailto:aries.belgium@gmail.com',
         'version' => '1.2',
         'compatibility' => '18*'
-    );
+    ];
 }
 
 /**
@@ -149,14 +149,14 @@ function extraforumperm_deactivate()
 
 function extraforumperm_permissions()
 {
-    return array(
+    return [
         'canrateownthreads' => 1,
         'canstickyownthreads' => 0,
         'cancloseownthreads' => 0,
         'canpostlinks' => 1,
         'canpostimages' => 1,
         'canpostvideos' => 1
-    );
+    ];
 }
 
 /**
@@ -198,14 +198,14 @@ function extraforumperm_usergroup_permissions()
     print '<div id="tab_extra">';
     $form_container = new FormContainer($lang->group_extra);
 
-    $extra_options = array();
+    $extra_options = [];
     foreach ($permissions as $permission => $default) {
         $l = 'extra_field_' . $permission;
         $extra_options[] = $form->generate_check_box(
             $permission,
             1,
             $lang->$l,
-            array('checked' => $mybb->input[$permission])
+            ['checked' => $mybb->input[$permission]]
         );
     }
 
@@ -568,7 +568,7 @@ function extraforumperm_save_modoptions()
 
     $forumpermissions = forum_permissions($thread['fid']);
 
-    $update = array();
+    $update = [];
     if ($forumpermissions['cancloseownthreads'] && $mybb->user['uid'] == $thread['uid']) {
         // Close the thread.
         if ($modoptions['closethread'] == 1 && $thread['closed'] != 1) {
