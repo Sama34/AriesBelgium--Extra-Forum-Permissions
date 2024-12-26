@@ -45,11 +45,13 @@ function extraforumperm_info()
     return [
         'name' => $lang->extraforumperm,
         'description' => "{$donate_button}{$lang->extraforumperm_description}",
-        'website' => 'http://mods.mybb.com/view/extra-forum-permissions',
+        'website' => 'https://github.com/OUGC-Network/MyBB-Extra-Forum-Permissions',
         'author' => 'Aries-Belgium',
         'authorsite' => 'mailto:aries.belgium@gmail.com',
-        'version' => '1.2',
-        'compatibility' => '18*'
+        'version' => '1.8.0',
+        'versioncode' => '1800',
+        'compatibility' => '18*',
+        'codename' => 'extra_forum_perms'
     ];
 }
 
